@@ -1,15 +1,16 @@
-from copy import deepcopy
 from math import ceil
 import numpy as np
+from sklearn.preprocessing import normalize
 
 from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, PatternFill
 from openpyxl.utils import get_column_letter
-from openpyxl.styles import Font, colors, Alignment, PatternFill
-from openpyxl.utils.dataframe import dataframe_to_rows
+
 
 class Phenotype(object):
-    def __init__(self, phenotypes, stats):
+    def __init__(self, phenotypes, dim_names, stats):
         self.phenotypes = phenotypes
+        self.dim_names = dim_names
         self.stats = stats
 
     def __getitem__(self, idx):
@@ -19,16 +20,34 @@ class Phenotype(object):
         return len(self.phenotypes)
 
 
-def interpret_phenotypes(*factors, item_idx2desc, threshold=None):
+def interpret_phenotypes(factors, item_idx2desc, dim_names, threshold=None):
+    """Function to interpret the non-negative CP factors as phenotypes. The columns of the CP factors
+    are first normalized by their l1-norm; the values less than the threshold are then filtered out.
+
+    Args:
+
+        factors (iterable of np.ndarray): CP factor matrices, one matrix for each dimension.
+        item_idx2desc (iterable of dict): Concept mapping of the factor matrices. Each one must be
+            a {idx: description} dict, and must has the same order with factors.
+        dim_names: The name of each dimensions.
+        threshold: The hard threshold to filter out items with very small values.
+
+    Returns:
+        Phenotype: The phenotype interpretation of the input factors.
+    """
+    assert len(factors) == len(item_idx2desc), 'Number of factors and the concept mappings must be the same.'
+    assert all([factor.min() > 0 for factor in factors]), 'All CP factors must be non-negative.'
+
     phenotypes = []
     n_dims = len(factors)
     n_factors = factors[0].shape[1]
     item_sortidx = [np.argsort(-U, axis=0) for U in factors]
 
+    factors = [normalize(factor, axis=0, norm='l1') for factor in factors]
+
     if threshold is not None:
-        factors = deepcopy(factors)
         for i, factor in enumerate(factors):
-            factor[factor <= threshold[i]] = 0
+            factor[factor < threshold[i]] = 0
 
     # get stats of phenotype overlapping
     def overlapping_stat(factor):
@@ -44,70 +63,19 @@ def interpret_phenotypes(*factors, item_idx2desc, threshold=None):
         for j in range(n_dims):
             dim_j = []
             for idx in item_sortidx[j][:, r]:
-                if factors[j][idx, r] > 1e-4:
+                if factors[j][idx, r] > 0:
                     dim_j.append((idx, item_idx2desc[j][idx], factors[j][idx, r]))
                 else:
                     break
             phenotype_definition.append(dim_j)
         phenotypes.append(phenotype_definition)
-    return Phenotype(phenotypes, stats)
+    return Phenotype(phenotypes, dim_names, stats)
 
 
-def coord(i, j):
-    return '{}{}'.format(get_column_letter(j), i)
-
-
-def phenotypes_to_excel_worksheet(phenotypes, dim_names, ws):
-    n_dims = len(phenotypes[0])
-    for i, pheno_r in enumerate(phenotypes):
-        ws.merge_cells(coord(1, (n_dims+1)*i+1)+':'+coord(1, (n_dims+1)*i+n_dims))
-        ws[coord(1, (n_dims+1)*i+1)] = 'Phenotype {:d}'.format(i+1)
-        ws[coord(1, (n_dims+1)*i+1)].font = Font(bold=True)
-        ws[coord(1, (n_dims+1)*i+1)].alignment = Alignment(horizontal='center', vertical='center')
-
-
-
-        for j, name in enumerate(dim_names):
-            ws[coord(2, (n_dims+1)*i+j+1)] = name
-            ws[coord(2, (n_dims+1)*i+j+1)].alignment = Alignment(horizontal='center', vertical='center')
-            ws[coord(2, (n_dims+1)*i+j+1)].font = Font(bold=True)
-            for k, (idx, item, weight) in enumerate(pheno_r[j]):
-                ws[coord(k+3, (n_dims+1)*i+j+1)] = '{} ({:.3f})'.format(item, weight)
-                if phenotypes.stats['overlap'][j][idx] >= ceil(0.75 * len(phenotypes)):
-                    ws.cell(row=k+3, column=(n_dims+1)*i+j+1).fill = PatternFill(fgColor='FF8B8B', fill_type='solid')
-                elif phenotypes.stats['overlap'][j][idx] >= ceil(0.5 * len(phenotypes)):
-                    ws.cell(row=k+3, column=(n_dims+1)*i+j+1).fill = PatternFill(fgColor='FFBF8B', fill_type='solid')
-                elif phenotypes.stats['overlap'][j][idx] >= ceil(0.25 * len(phenotypes)):
-                    ws.cell(row=k+3, column=(n_dims+1)*i+j+1).fill = PatternFill(fgColor='FFFF97', fill_type='solid')
-            
-            ws.column_dimensions[get_column_letter((n_dims+1)*i+j+1)].width = 50
 
                 
 
 
-def phenotypes_to_excel_file(phenotypes, dim_names, filepath, ws_name=None):
-    wb = Workbook()
-    ws = wb.active
-    if ws_name:
-        ws.title = ws_name
-    phenotypes_to_excel_worksheet(phenotypes, dim_names, ws)
-    wb.save(filepath)
 
 
-def factor_matrices_to_excel(factors, item_dicts, filepath, threshold=None):
-    dim_names, item_idx2desc = zip(*item_dicts)
-    phenotypes = interpret_phenotypes(*factors, item_idx2desc=item_idx2desc, threshold=threshold)
-    phenotypes_to_excel_file(phenotypes, dim_names, filepath)
 
-
-def batch_factors_to_excel(factors_dict, item_dicts, filepath, threshold=None):
-    wb = Workbook()
-    wb.remove(wb.active)
-
-    dim_names, item_idx2desc = zip(*item_dicts)
-
-    for name, factors in factors_dict.items():
-        ws = wb.create_sheet(name)
-        phenotypes = interpret_phenotypes(*factors, item_idx2desc=item_idx2desc, threshold=threshold)
-        phenotypes_to_excel_worksheet(phenotypes, dim_names, ws)
-    wb.save(filepath)
