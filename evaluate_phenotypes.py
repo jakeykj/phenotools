@@ -36,7 +36,7 @@ def interpret_phenotypes(factors, item_idx2desc, dim_names, threshold=None):
         Phenotype: The phenotype interpretation of the input factors.
     """
     assert len(factors) == len(item_idx2desc), 'Number of factors and the concept mappings must be the same.'
-    assert all([factor.min() > 0 for factor in factors]), 'All CP factors must be non-negative.'
+    assert all([factor.min() >= 0 for factor in factors]), 'All CP factors must be non-negative.'
 
     phenotypes = []
     n_dims = len(factors)
