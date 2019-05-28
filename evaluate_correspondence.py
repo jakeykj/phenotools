@@ -28,3 +28,23 @@ def interpret_corres_matrix(corrs, row_mapping, col_mapping, col_normalize=True)
     return cols
 
 
+def extract_diag_med_corres(D, Us, Ud, Um, dxmap_idx2desc, rxmap_idx2desc):
+    corrs = {}
+    for dx_idx in range(Ud.shape[0]):
+        pts = D[:, dx_idx].nonzero()[0]
+        pt_factor = Us[pts, :].sum(axis=0)
+        corrs_pt = Um @ np.diag(pt_factor) @ Ud[dx_idx, :].reshape(-1, 1)
+        corrs_pt = corrs_pt / corrs_pt.sum()
+        
+        nnz_idx = corrs_pt.nonzero()[0]
+        corrs_pt = [(rxmap_idx2desc[i], corrs_pt[i][0]) for i in nnz_idx]
+        corrs_pt = sorted(corrs_pt, key=lambda x: x[1], reverse=True)
+        
+        corrs[dxmap_idx2desc[dx_idx]] = corrs_pt
+    
+    dx_count = D.sum(axis=0)
+    dx_order = sorted(range(Ud.shape[0]), key=lambda x: dx_count[x], reverse=True)
+    corrs = [(dxmap_idx2desc[i], corrs[dxmap_idx2desc[i]]) for i in dx_order]
+    return corrs
+
+
