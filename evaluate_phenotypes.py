@@ -1,10 +1,11 @@
-from math import ceil
+# from math import ceil
 import numpy as np
 from sklearn.preprocessing import normalize
+from sklearn.metrics.pairwise import cosine_similarity
 
-from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment, PatternFill
-from openpyxl.utils import get_column_letter
+# from openpyxl import Workbook
+# from openpyxl.styles import Font, Alignment, PatternFill
+# from openpyxl.utils import get_column_letter
 
 
 class Phenotype(object):
@@ -70,6 +71,17 @@ def interpret_phenotypes(factors, item_idx2desc, dim_names, threshold=None):
             phenotype_definition.append(dim_j)
         phenotypes.append(phenotype_definition)
     return Phenotype(phenotypes, dim_names, stats)
+
+
+def sparsity_similarity(factors, threshold=1e-5):
+    sparsity = [U[U > threshold].shape[0] / (U.shape[0] * U.shape[1]) for U in factors]
+    similarity = []
+    for U in factors:
+        similarity_matrix = cosine_similarity(U.T)
+        r = np.arange(similarity_matrix.shape[0])
+        mask = r[:, None] < r
+        similarity.append(similarity_matrix[mask].mean())
+    return sparsity, similarity
 
 
 
