@@ -1,16 +1,19 @@
 phenotools
 ==========
 
-Usage
------
+Example
+-------
+
 .. code-block:: python
+
     from phenotools import factor_matrices_to_xlsx
-    
+
     factors = [factor_dx, factor_rx]
     item_dicts = [('Diagnosis', dx_idx2desc), ('Medications', rx_idx2desc)]
     filepath = './phenotypes.xlsx'
-    
+
     factor_matrices_to_xlsx(factors, item_dicts, filepath, threshold=0.1, highlight=True)
+
 
 Parameters
 ~~~~~~~~~~
