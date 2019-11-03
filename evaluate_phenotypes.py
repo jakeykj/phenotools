@@ -26,7 +26,6 @@ def interpret_phenotypes(factors, item_idx2desc, dim_names, threshold=None):
     are first normalized by their l1-norm; the values less than the threshold are then filtered out.
 
     Args:
-
         factors (iterable of np.ndarray): CP factor matrices, one matrix for each dimension.
         item_idx2desc (iterable of dict): Concept mapping of the factor matrices. Each one must be
             a {idx: description} dict, and must has the same order with factors.
@@ -82,12 +81,3 @@ def sparsity_similarity(factors, threshold=1e-5):
         mask = r[:, None] < r
         similarity.append(similarity_matrix[mask].mean())
     return sparsity, similarity
-
-
-
-                
-
-
-
-
-
