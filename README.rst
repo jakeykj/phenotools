@@ -29,4 +29,4 @@ Parameters
     the :math:`\ell_1` norm, then values below threshold is set to zero. If `None` is given (by default), 
     no thresholding is performed after normalization.
 * highlight: bool
-    If `True`, highlight items that appear frequently in different phenotypes. [Default: `Faslse`]
+    If `True`, highlight items that appear frequently in different phenotypes. [Default: `False`]
